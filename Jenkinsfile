@@ -1,34 +1,49 @@
 pipeline {
+
+  environment {
+    dockerimagename = "suhil17/sbm"
+    dockerImage = ""
+  }
+
   agent any
+
   stages {
-    stage('Build APP') {
+
+    stage('Checkout Source') {
       steps {
-        echo 'Start Building'
+        git 'https://github.com/SuhilMohamed/SBM-Project.git'
       }
     }
 
-    stage('Test') {
-      parallel {
-        stage('Test Frontend') {
-          steps {
-            echo 'Testing The Frontend'
-          }
+    stage('Build image') {
+      steps{
+        script {
+          dockerImage = docker.build dockerimagename
         }
-
-        stage('Test Backend') {
-          steps {
-            echo 'Testing The Backend'
-          }
-        }
-
       }
     }
 
-    stage('Deploy') {
+    stage('Pushing Image') {
+      environment {
+               registryCredential = 'dockerhub-credentials'
+           }
+      steps{
+        script {
+          docker.withRegistry( 'https://registry.hub.docker.com', registryCredential ) {
+            dockerImage.push("latest")
+          }
+        }
+      }
+    }
+
+    stage('Deploying App to Kubernetes') {
       steps {
-        echo 'Deploying Success'
+        script {
+          kubernetesDeploy(configs: "deployment.yaml", "service.yaml")
+        }
       }
     }
 
   }
+
 }
